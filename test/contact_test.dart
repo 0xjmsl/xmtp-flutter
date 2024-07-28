@@ -276,10 +276,10 @@ void main() {
 
       // Test round-trip write/read of the compact consents.
       var before = CompactConsents(
-        xmtp.PrivatePreferencesAction_Allow(
+        xmtp.PrivatePreferencesAction_AllowAddress(
           walletAddresses: [allow1, allow2],
         ),
-        xmtp.PrivatePreferencesAction_Block(
+        xmtp.PrivatePreferencesAction_DenyAddress(
           walletAddresses: [deny1, deny2],
         ),
         yesterday,

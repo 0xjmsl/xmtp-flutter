@@ -46,11 +46,13 @@ class CodecRegistry implements Codec<DecodedContent> {
     var codec = _codecFor(encoded.type);
     if (codec == null) {
       if (encoded.hasFallback()) {
+        print("object has fallback");
         return DecodedContent(contentTypeText, encoded.fallback);
       }
       throw StateError(
           "unable to decode unsupported type ${_key(encoded.type)}");
     } else {
+      print("object decoded by coded");
       return DecodedContent(encoded.type, await codec.decode(encoded));
     }
   }

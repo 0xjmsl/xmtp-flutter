@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart' as grpc;
 import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
-import 'package:flutter/foundation.dart';
 
-const sdkVersion = '1.4.0';
+const sdkVersion = '1.4.1';
 const clientVersion = "xmtp-flutter/$sdkVersion";
 // TODO: consider generating these ^ during build.
 
@@ -18,17 +17,17 @@ const DEV_ADDRESS = "https://grpc.dev.xmtp.network:443";
 
 /// This is an instance of the [xmtp.MessageApiClient] with some
 /// metadata helpers (e.g. for setting the authorization token).
-class Api {
+class ApiClient {
   final xmtp.MessageApiClient client;
   final xmtp.MlsApiClient mls_Client;
   final xmtp.IdentityApiClient identity_Client;
   final grpc.ClientChannel _channel;
   final _MetadataManager _metadata;
 
-  Api._(this._channel, this.client, this.mls_Client, this.identity_Client,
+  ApiClient._(this._channel, this.client, this.mls_Client, this.identity_Client,
       this._metadata);
 
-  factory Api.create({
+  factory ApiClient.create({
     String host = 'dev.xmtp.network',
     int port = 5556,
     bool isSecure = true,
@@ -47,7 +46,7 @@ class Api {
       ),
     );
 
-    return Api.createAdvanced(
+    return ApiClient.createAdvanced(
       channel,
       options: grpc.CallOptions(
         timeout: const Duration(days: 7),
@@ -59,7 +58,7 @@ class Api {
     );
   }
 
-  factory Api.createAdvanced(
+  factory ApiClient.createAdvanced(
     grpc.ClientChannel channel, {
     grpc.CallOptions? options,
     Iterable<grpc.ClientInterceptor>? interceptors,
@@ -87,8 +86,7 @@ class Api {
     );
 
     metadata.appVersion = appVersion;
-
-    return Api._(channel, client, mlsClient, identityClient, metadata);
+    return ApiClient._(channel, client, mlsClient, identityClient, metadata);
   }
 
   void clearAuthTokenProvider() {

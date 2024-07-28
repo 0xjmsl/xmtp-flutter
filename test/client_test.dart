@@ -26,13 +26,16 @@ void main() {
   // This creates 2 new users with connected clients and
   // sends messages back and forth between them.
   test(
-    skip: skipUnlessTestServerEnabled,
     "messaging: listing, reading, writing, streaming",
     () async {
       var aliceWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
-      var aliceApi = createTestServerApi();
+      print('Alice\'s wallet address: ${aliceWallet.address}');
+      // var aliceApi = createTestServerApi();
+      var aliceApi = Api.create(host: 'dev.xmtp.network', isSecure: true);
       var bobWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
-      var bobApi = createTestServerApi();
+      print('bob\'s wallet address: ${bobWallet.address}');
+      // var bobApi = createTestServerApi();
+      var bobApi = Api.create(host: 'dev.xmtp.network', isSecure: true);
       var alice = await Client.createFromWallet(aliceApi, aliceWallet);
       var bob = await Client.createFromWallet(bobApi, bobWallet);
       await delayToPropagate();
@@ -118,7 +121,31 @@ void main() {
   );
 
   test(
-    skip: skipUnlessTestServerEnabled,
+    // skip: skipUnlessTestServerEnabled,
+    "messaging myself",
+    () async {
+      var aliceWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
+      print('Alice\'s wallet address: ${aliceWallet.address}');
+      var aliceApi =
+          Api.create(host: 'production.xmtp.network', isSecure: true);
+      var alice = await Client.createFromWallet(aliceApi, aliceWallet);
+
+      var targetAddress = '0x21cE19ae991660bc6c67B31159b732fe1D1972A6';
+      var aliceConvo = await alice.newConversation(targetAddress);
+
+      await alice.sendMessage(aliceConvo, "Holiii desde xmtp ñ_ñ 🤩🤯🤯");
+      await delayToPropagate();
+
+      var aliceMessages = await alice.listMessages(aliceConvo);
+      expect(aliceMessages.length, 1);
+      expect(aliceMessages[0].sender, aliceWallet.address);
+      expect(aliceMessages[0].content, "Holiii desde xmtp ñ_ñ 🤩🤯🤯");
+    },
+  );
+// }
+
+  test(
+    // skip: skipUnlessTestServerEnabled,
     "codecs: discard messages from unsupported codecs without fallback text",
     () async {
       var aliceWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
@@ -165,7 +192,7 @@ void main() {
   );
 
   test(
-    skip: skipUnlessTestServerEnabled,
+    // skip: skipUnlessTestServerEnabled,
     "push: handle out-of-band decryption of conversations + messages",
     () async {
       var aliceWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
@@ -217,7 +244,7 @@ void main() {
 
   // This verifies client usage of published contacts.
   test(
-    skip: skipUnlessTestServerEnabled,
+    // skip: skipUnlessTestServerEnabled,
     "contacts: can message only when their contact has been published",
     () async {
       var aliceWallet = EthPrivateKey.createRandom(Random.secure()).asSigner();
@@ -911,12 +938,12 @@ Future _startRandomConversationsWith(
     await Future.wait(Iterable.generate(
       messagesPerConvo,
       (_) => sender.sendMessage(convo, """
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
-sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris 
-nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in 
-reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla 
-pariatur. Excepteur sint occaecat cupidatat non proident, sunt in 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
 culpa qui officia deserunt mollit anim id est laborum.
 """),
     ));

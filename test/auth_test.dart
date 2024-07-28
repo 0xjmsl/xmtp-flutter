@@ -16,7 +16,8 @@ void main() {
   test('creating authToken', () async {
     var alice = EthPrivateKey.createRandom(Random.secure()).asSigner();
     var identity = EthPrivateKey.createRandom(Random.secure());
-
+    print(alice.address);
+    print(alice.address.hexEip55);
     // Prompt them to sign "XMTP : Create Identity ..."
     var authorized = await alice.createIdentity(identity);
 
@@ -65,7 +66,7 @@ void main() {
   // It saves (encrypts) that key to the network storage
   // and then loads (decrypts) it back.
   test(
-    skip: skipUnlessTestServerEnabled,
+    // skip: skipUnlessTestServerEnabled,
     "storing private keys",
     () async {
       var alice = EthPrivateKey.createRandom(Random.secure()).asSigner();
@@ -90,13 +91,14 @@ void main() {
   // This creates an auth token, waits for it to expire,
   // then checks that the next request gets a new auth token.
   test(
-    skip: skipUnlessTestServerEnabled,
+    // skip: skipUnlessTestServerEnabled,
     "auto-refreshing expired authTokens",
     () async {
       // We use a very short duration here to speed up the test.
       var maxAge = const Duration(milliseconds: 100);
       var alice = EthPrivateKey.createRandom(Random.secure()).asSigner();
-      var api = createTestServerApi();
+      // var api = createTestServerApi();
+      var api = Api.create(host: 'production.xmtp.network', isSecure: true);
       var auth = AuthManager(alice.address, api, maxAuthTokenAge: maxAge);
       await auth.authenticateWithCredentials(alice);
 

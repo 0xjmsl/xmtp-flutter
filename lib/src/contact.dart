@@ -1,18 +1,17 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:quiver/check.dart';
 import 'package:quiver/collection.dart';
 import 'package:web3dart/web3dart.dart';
-import 'package:xmtp_bindings_flutter/xmtp_bindings_flutter.dart';
 import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 
 import 'auth.dart';
-import 'common/api.dart';
+import 'common/api_stub.dart';
 import 'common/signature.dart';
 import 'common/time64.dart';
 import 'common/topic.dart';
+import 'common/userPreferencesEncryption.dart';
 
 /// This manages the contacts for the user's session.
 ///
@@ -127,13 +126,13 @@ class ContactManager {
   }
 
   CompactConsents exportConsents() => CompactConsents(
-        xmtp.PrivatePreferencesAction_Allow(
+        xmtp.PrivatePreferencesAction_AllowAddress(
           walletAddresses: _consentByAddress.entries
               .where((e) => e.value == ContactConsent.allow)
               .map((e) => e.key)
               .toList(),
         ),
-        xmtp.PrivatePreferencesAction_Block(
+        xmtp.PrivatePreferencesAction_DenyAddress(
           walletAddresses: _consentByAddress.entries
               .where((e) => e.value == ContactConsent.deny)
               .map((e) => e.key)
@@ -162,12 +161,13 @@ class ContactManager {
         // discard any invalid or irrelevant actions
         .where((a) => a != null)
         .map((a) => a!)
-        .where((a) => a.hasBlock() || a.hasAllow())
+        .where((a) => a.hasDenyAddress() || a.hasAllowAddress())
         .map((a) {
-          var addresses =
-              a.hasBlock() ? a.block.walletAddresses : a.allow.walletAddresses;
+          var addresses = a.hasDenyAddress()
+              ? a.denyAddress.walletAddresses
+              : a.allowAddress.walletAddresses;
           var consent =
-              a.hasBlock() ? ContactConsent.deny : ContactConsent.allow;
+              a.hasDenyAddress() ? ContactConsent.deny : ContactConsent.allow;
           return addresses
               .map((address) => MapEntry(_normalizeAddress(address), consent));
         })
@@ -183,10 +183,10 @@ class ContactManager {
     List<int> payload,
   ) async {
     try {
-      var decrypted = await libxmtp.userPreferencesDecrypt(
-        publicKey: keys.identity.publicKey.getEncoded(false),
-        privateKey: keys.identity.privateKey,
-        encryptedMessage: Uint8List.fromList(payload),
+      var decrypted = await userPreferencesDecrypt(
+        keys.identity.publicKey.getEncoded(false),
+        keys.identity.privateKey,
+        Uint8List.fromList(payload),
       );
       return xmtp.PrivatePreferencesAction.fromBuffer(decrypted);
     } catch (err) {
@@ -201,7 +201,7 @@ class ContactManager {
   ) async {
     _consentByAddress[ethereumAddress.hexEip55] = ContactConsent.deny;
     var action = xmtp.PrivatePreferencesAction()
-      ..block = xmtp.PrivatePreferencesAction_Block(
+      ..denyAddress = xmtp.PrivatePreferencesAction_DenyAddress(
         walletAddresses: [ethereumAddress.hexEip55],
       );
     await _publishAction(keys, action);
@@ -214,7 +214,7 @@ class ContactManager {
   ) async {
     _consentByAddress[ethereumAddress.hexEip55] = ContactConsent.allow;
     var action = xmtp.PrivatePreferencesAction()
-      ..allow = xmtp.PrivatePreferencesAction_Allow(
+      ..allowAddress = xmtp.PrivatePreferencesAction_AllowAddress(
         walletAddresses: [ethereumAddress.hexEip55],
       );
     await _publishAction(keys, action);
@@ -226,10 +226,10 @@ class ContactManager {
     xmtp.PrivatePreferencesAction action,
   ) async {
     var topic = await Topic.userPreferences(keys.identity.privateKey);
-    var payload = await libxmtp.userPreferencesEncrypt(
-      publicKey: keys.identity.publicKey.getEncoded(false),
-      privateKey: keys.identity.privateKey,
-      message: action.writeToBuffer(),
+    var payload = await userPreferencesEncrypt(
+      keys.identity.publicKey.getEncoded(false),
+      keys.identity.privateKey,
+      action.writeToBuffer(),
     );
     return _api.client.publish(
       xmtp.PublishRequest(
@@ -253,10 +253,10 @@ String _normalizeAddress(String address) =>
 /// For convenience, it includes serializing helpers to/from bytes.
 class CompactConsents {
   // All explicitly allowed contacts.
-  final xmtp.PrivatePreferencesAction_Allow allowed;
+  final xmtp.PrivatePreferencesAction_AllowAddress allowed;
 
   // All explicitly denied contacts.
-  final xmtp.PrivatePreferencesAction_Block denied;
+  final xmtp.PrivatePreferencesAction_DenyAddress denied;
 
   // The time we last refreshed consents from the network, if ever.
   final DateTime? lastRefreshedAt;
@@ -312,8 +312,8 @@ class CompactConsents {
     });
 
     return CompactConsents(
-      xmtp.PrivatePreferencesAction_Allow(walletAddresses: allowed),
-      xmtp.PrivatePreferencesAction_Block(walletAddresses: denied),
+      xmtp.PrivatePreferencesAction_AllowAddress(walletAddresses: allowed),
+      xmtp.PrivatePreferencesAction_DenyAddress(walletAddresses: denied),
       lastRefreshed64 == 0
           ? null
           : DateTime.fromMillisecondsSinceEpoch(lastRefreshed64, isUtc: true),

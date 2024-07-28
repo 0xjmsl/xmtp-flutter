@@ -19,9 +19,18 @@ dependencies:
   pointycastle: ^3.6.2
   quiver: ^3.2.1
   web3dart: ^2.6.1
-  xmtp_proto: ^3.33.0
-  xmtp_bindings_flutter: ^0.0.1-development.4
-#    path: ../libxmtp/bindings_flutter
+#  xmtp_proto: ^3.33.0
+  # xmtp_bindings_flutter: ^0.0.1-development.4
+  xmtp_proto:
+    path: "c:/users/jmsan/StudioProjects/xmtp_proto"
+  crypto: ^3.0.3
+  intl: ^0.19.0
+  timezone: ^0.9.3
+  convert: ^3.1.1
+  protobuf: ^3.1.0
+  eth_sig_util: ^0.0.9
+
+
 
 dependency_overrides:
   stream_channel: ^2.1.1

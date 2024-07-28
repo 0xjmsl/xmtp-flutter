@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:grpc/grpc.dart' as grpc;
+import 'package:grpc/grpc_web.dart' as grpc_web;
+import 'package:grpc/grpc.dart';
 import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 import 'package:flutter/foundation.dart';
 
@@ -13,20 +14,14 @@ const clientVersion = "xmtp-flutter/$sdkVersion";
 /// The conversation managers use this to automatically partition calls.
 const maxQueryRequestsPerBatch = 50;
 
-const LOCALHOST_ADDRESS = "http://localhost:5556";
-const DEV_ADDRESS = "https://grpc.dev.xmtp.network:443";
-
 /// This is an instance of the [xmtp.MessageApiClient] with some
 /// metadata helpers (e.g. for setting the authorization token).
 class Api {
   final xmtp.MessageApiClient client;
-  final xmtp.MlsApiClient mls_Client;
-  final xmtp.IdentityApiClient identity_Client;
-  final grpc.ClientChannel _channel;
+  final grpc_web.GrpcWebClientChannel _channel;
   final _MetadataManager _metadata;
 
-  Api._(this._channel, this.client, this.mls_Client, this.identity_Client,
-      this._metadata);
+  Api._(this._channel, this.client, this._metadata);
 
   factory Api.create({
     String host = 'dev.xmtp.network',
@@ -35,62 +30,39 @@ class Api {
     bool debugLogRequests = kDebugMode,
     String appVersion = "dev/0.0.0-development",
   }) {
-    var channel = grpc.ClientChannel(
-      host,
-      port: port,
-      options: grpc.ChannelOptions(
-        idleTimeout: const Duration(days: 7),
-        credentials: isSecure
-            ? const grpc.ChannelCredentials.secure()
-            : const grpc.ChannelCredentials.insecure(),
-        userAgent: clientVersion,
-      ),
+    var channel = grpc_web.GrpcWebClientChannel.xhr(
+      Uri.parse(isSecure ? 'https://$host:$port' : 'http://$host:$port'),
     );
 
     return Api.createAdvanced(
       channel,
-      options: grpc.CallOptions(
-        timeout: const Duration(days: 7),
+      options: grpc_web.CallOptions(
+        timeout: const Duration(days: 5),
         // TODO: consider supporting compression
         // compression: const grpc.GzipCodec(),
       ),
-      interceptors: debugLogRequests ? [_DebugLogInterceptor()] : [],
       appVersion: appVersion,
     );
   }
 
   factory Api.createAdvanced(
-    grpc.ClientChannel channel, {
-    grpc.CallOptions? options,
-    Iterable<grpc.ClientInterceptor>? interceptors,
+    grpc_web.GrpcWebClientChannel channel, {
+    grpc_web.CallOptions? options,
+    Iterable<ClientInterceptor>? interceptors,
     String appVersion = "",
   }) {
     var metadata = _MetadataManager();
-    options = grpc.CallOptions(
+    options = grpc_web.CallOptions(
       providers: [metadata.provideCallMetadata],
+      timeout: const Duration(days: 5),
     ).mergedWith(options);
     var client = xmtp.MessageApiClient(
       channel,
       options: options,
-      interceptors: interceptors,
     );
-    var mlsClient = xmtp.MlsApiClient(
-      channel,
-      options: options,
-      interceptors: interceptors,
-    );
-
-    var identityClient = xmtp.IdentityApiClient(
-      channel,
-      options: options,
-      interceptors: interceptors,
-    );
-
     metadata.appVersion = appVersion;
-
-    return Api._(channel, client, mlsClient, identityClient, metadata);
+    return Api._(channel, client, metadata);
   }
-
   void clearAuthTokenProvider() {
     _metadata.authTokenProvider = null;
   }
@@ -192,89 +164,5 @@ class _MetadataManager {
     if (authToken.isNotEmpty) {
       metadata['authorization'] = 'Bearer $authToken';
     }
-  }
-}
-
-/// If true, then the API debug logger includes the topic names
-/// requested by each API call.
-/// Note: this has no effect if the debug logger is not enabled.
-/// See `debugLogRequests` above.
-bool isDebugLoggingTopics = kDebugMode;
-
-/// This logs all API requests.
-/// See `debugLogRequests` above.
-class _DebugLogInterceptor extends grpc.ClientInterceptor {
-  int _count = 1;
-
-  @override
-  grpc.ResponseFuture<R> interceptUnary<Q, R>(
-    grpc.ClientMethod<Q, R> method,
-    Q request,
-    grpc.CallOptions options,
-    grpc.ClientUnaryInvoker<Q, R> invoker,
-  ) {
-    final reqN = _nextReqN();
-    final clock = Stopwatch()..start();
-    debugPrint('xmtp: #$reqN --> ${method.path}');
-    if (isDebugLoggingTopics) {
-      if (request is xmtp.PublishRequest) {
-        for (var e in request.envelopes) {
-          debugPrint('  topic: ${e.contentTopic}');
-        }
-      }
-      if (request is xmtp.QueryRequest) {
-        for (var topic in request.contentTopics.take(3)) {
-          debugPrint('  topic: $topic');
-        }
-        var more = request.contentTopics.length - 3;
-        if (more > 0) {
-          debugPrint('         ... and $more more');
-        }
-        if (request.hasStartTimeNs()) {
-          debugPrint('  start: ${request.startTimeNs}');
-        }
-        if (request.hasEndTimeNs()) {
-          debugPrint('    end: ${request.startTimeNs}');
-        }
-        if (request.hasPagingInfo()) {
-          if (request.pagingInfo.hasLimit()) {
-            debugPrint('  limit: ${request.pagingInfo.limit}');
-          }
-          if (request.pagingInfo.hasDirection()) {
-            debugPrint('    dir: ${request.pagingInfo.direction}');
-          }
-          if (request.pagingInfo.hasCursor()) {
-            debugPrint(' cursor: ${request.pagingInfo.cursor.whichCursor()}');
-          }
-        }
-      }
-    }
-    var res = invoker(method, request, options);
-    res.then((_) => debugPrint(
-        'xmtp: <-- #$reqN ${method.path} ${clock.elapsedMilliseconds} ms'));
-    return res;
-  }
-
-  @override
-  grpc.ResponseStream<R> interceptStreaming<Q, R>(
-    grpc.ClientMethod<Q, R> method,
-    Stream<Q> requests,
-    grpc.CallOptions options,
-    grpc.ClientStreamingInvoker<Q, R> invoker,
-  ) {
-    final reqN = _nextReqN();
-    debugPrint('xmtp: #$reqN <-> ${method.path}');
-    if (isDebugLoggingTopics) {
-      requests.single.then((req) {
-        var topics = (req as xmtp.SubscribeRequest).contentTopics;
-        debugPrint(' topic: ${topics.isEmpty ? "(none)" : topics.first}');
-      });
-    }
-    return invoker(method, requests, options);
-  }
-
-  String _nextReqN() {
-    final reqCount = _count++;
-    return reqCount.toRadixString(36).padLeft(3, '0');
   }
 }

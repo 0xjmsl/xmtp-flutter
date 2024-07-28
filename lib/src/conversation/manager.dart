@@ -4,7 +4,7 @@ import 'package:quiver/iterables.dart';
 import 'package:web3dart/credentials.dart';
 import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 
-import '../common/api.dart';
+import '../common/api_stub.dart';
 import '../common/topic.dart';
 import '../contact.dart';
 import '../content/decoded.dart';

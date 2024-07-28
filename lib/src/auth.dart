@@ -9,7 +9,7 @@ import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 
 import 'common/crypto.dart';
 import 'common/signature.dart';
-import 'common/api.dart';
+import 'common/api_stub.dart';
 import 'common/time64.dart';
 import 'common/topic.dart';
 
@@ -126,6 +126,13 @@ class AuthManager {
         message: encrypted.writeToBuffer(),
       ),
     ]));
+  }
+
+  registerInstallation() {
+    _api.mls_Client.registerInstallation(xmtp.RegisterInstallationRequest(
+      keyPackage: xmtp.KeyPackageUpload(),
+      isInboxIdCredential: true,
+    ));
   }
 }
 

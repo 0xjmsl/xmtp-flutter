@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:quiver/check.dart';
 import 'package:web3dart/credentials.dart';
-import 'package:xmtp/src/common/bindingsCrypt.dart';
+import 'package:xmtp/newSrc/messages/bindingsCrypt.dart';
 
 /// Clients interact with XMTP by querying, subscribing, and publishing
 /// to these topics.

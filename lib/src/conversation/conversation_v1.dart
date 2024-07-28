@@ -8,7 +8,7 @@ import 'package:web3dart/crypto.dart';
 import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 
 import '../auth.dart';
-import '../common/api.dart';
+import '../common/api_stub.dart';
 import '../common/crypto.dart';
 import '../common/signature.dart';
 import '../common/topic.dart';
@@ -149,7 +149,7 @@ class ConversationManagerV1 {
         .map((e) => xmtp.Message.fromBuffer(e.message))
         .map((msg) => _decodedFromMessage(msg)));
     // Remove nulls (which are discarded bad envelopes).
-    return messages.where((msg) => msg != null).map((msg) => msg!).toList();
+    return messages.whereType<DecodedMessage>().toList();
   }
 
   Stream<DecodedMessage> streamMessages(Iterable<Conversation> conversations) {

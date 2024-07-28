@@ -11,7 +11,7 @@ import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 
 import '../auth.dart';
 import '../contact.dart';
-import '../common/api.dart';
+import '../common/api_stub.dart';
 import '../common/crypto.dart';
 import '../common/signature.dart';
 import '../common/time64.dart';
@@ -243,7 +243,7 @@ class ConversationManagerV2 {
               xmtp.Message.fromBuffer(e.message),
             )));
     // Remove nulls (which are discarded bad envelopes).
-    return messages.where((msg) => msg != null).map((msg) => msg!).toList();
+    return messages.whereType<DecodedMessage>().toList();
   }
 
   /// This exposes the stream of new messages in the [conversations].

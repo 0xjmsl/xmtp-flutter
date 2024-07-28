@@ -5,7 +5,8 @@ import 'package:xmtp_proto/xmtp_proto.dart' as xmtp;
 import 'package:http/http.dart' as http;
 
 import 'auth.dart';
-import 'common/api.dart';
+import 'common/api_stub.dart';
+// import 'common/api_web.dart';
 import 'common/signature.dart';
 import 'contact.dart';
 import 'content/attachment_codec.dart';
@@ -94,8 +95,10 @@ class Client implements Codec<DecodedContent> {
     List<Codec> customCodecs = const [],
   }) async {
     var client = await _createUninitialized(api, wallet.address, customCodecs);
+
     await client._auth.authenticateWithCredentials(wallet);
     await client._contacts.ensureSavedContact(client._auth.keys);
+
     return client;
   }
 
